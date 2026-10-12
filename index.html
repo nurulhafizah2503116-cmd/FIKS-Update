@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎮 MathQuest 3D - Bangun Ruang Adventure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+      :root {
+        --primary: #667eea;
+        --secondary: #764ba2;
+        --accent: #f59e0b;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        font-family: 'Poppins', 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1400px;
+        background: white;
+        border-radius: 30px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+        animation: slideIn 0.5s ease-out;
+      }
+
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .header {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        padding: 30px 25px;
+        text-align: center;
+        border-bottom: 4px solid var(--accent);
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 5px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .header p {
+        font-size: 1em;
+        opacity: 0.95;
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 30px;
+        padding: 30px;
+        min-height: calc(100vh - 150px);
+      }
+
+      @media (max-width: 1100px) {
+        .main-grid { grid-template-columns: 1fr; gap: 20px; }
+      }
+
+      .panel {
+        background: #f8f9fa;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+      }
+
+      .panel:hover { box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15); }
+
+      .panel h2 {
+        color: var(--primary);
+        font-size: 1.6em;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .shape-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .shape-btn {
+        padding: 15px 12px;
+        border: 3px solid #e0e0e0;
+        background: white;
+        color: #333;
+        border-radius: 15px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.95em;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shape-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        transition: left 0.3s ease;
+        z-index: -1;
+      }
+
+      .shape-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+      }
+
+      .shape-btn.active {
+        color: white;
+        border-color: var(--primary);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .shape-btn.active::before { left: 0; }
+
+      .canvas-wrap {
+        position: relative;
+        width: 100%;
+        height: 450px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #e3f2fd 0%, #f5f5f5 100%);
+        border: 3px solid #e0e0e0;
+        margin-bottom: 15px;
+        box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.05);
+      }
+
+      #canvas { width: 100%; height: 100%; display: block; }
+
+      .formula-popup {
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        background: white;
+        border: 3px solid var(--primary);
+        border-radius: 15px;
+        padding: 15px 18px;
+        color: var(--primary);
+        font-weight: 900;
+        font-size: 0.9em;
+        max-width: 280px;
+        line-height: 1.6;
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.25);
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .formula-popup.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .formula-popup strong {
+        display: block;
+        color: var(--secondary);
+        margin-bottom: 8px;
+        font-size: 1.1em;
+      }
+
+      .part-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .part-btn {
+        padding: 12px 10px;
+        background: white;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.85em;
+        transition: all 0.3s ease;
+      }
+
+      .part-btn:hover {
+        border-color: var(--primary);
+        background: #f0f4ff;
+        transform: translateY(-2px);
+      }
+
+      .part-btn.active {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      .concept-box {
+        background: linear-gradient(135deg, #f9f7ff, #f3f7ff);
+        border-left: 5px solid var(--primary);
+        border-radius: 15px;
+        padding: 18px;
+      }
+
+      .concept-box h3 {
+        color: var(--primary);
+        margin-bottom: 8px;
+        font-size: 1.05em;
+      }
+
+      .concept-box p {
+        color: #555;
+        line-height: 1.7;
+        font-size: 0.92em;
+        margin-bottom: 12px;
+      }
+
+      .formula-highlight {
+        background: #fff8dc;
+        border: 2px solid var(--warning);
+        color: #7c5a00;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-family: 'Courier New', monospace;
+        font-weight: 900;
+        font-size: 0.95em;
+        line-height: 1.6;
+      }
+
+      .quiz-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .quiz-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        padding: 15px 18px;
+        border-radius: 15px;
+        border-left: 4px solid var(--primary);
+      }
+
+      .quiz-header h3 {
+        color: var(--primary);
+        margin: 0;
+        font-size: 1.2em;
+      }
+
+      .quiz-counter {
+        background: var(--primary);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.85em;
+      }
+
+      .progress-container {
+        width: 100%;
+      }
+
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85em;
+        color: #666;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 12px;
+        background: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        border-radius: inherit;
+        transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+      }
+
+      .question-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        border: 2px solid #e0e0e0;
+      }
+
+      .difficulty-tag {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        font-weight: 900;
+        margin-bottom: 12px;
+      }
+
+      .difficulty-easy {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .difficulty-medium {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .difficulty-hard {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .question-card h4 {
+        color: #333;
+        font-size: 1.05em;
+        margin-bottom: 15px;
+        line-height: 1.6;
+      }
+
+      .options-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .option-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+      }
+
+      .option-item:hover {
+        border-color: var(--primary);
+        background: #f0f4ff;
+        transform: translateX(5px);
+      }
+
+      .option-item input { width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary); }
+
+      .option-item.correct {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+      }
+
+      .option-item.incorrect {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+      }
+
+      .feedback-box {
+        display: none;
+        margin-top: 15px;
+        padding: 15px;
+        border-radius: 12px;
+        border-left: 4px solid;
+        font-weight: 600;
+      }
+
+      .feedback-box.show { display: block; }
+
+      .feedback-box.correct {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+      }
+
+      .feedback-box.incorrect {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+      }
+
+      .steps-container {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid currentColor;
+        opacity: 0.9;
+        font-size: 0.9em;
+      }
+
+      .step-item {
+        margin: 6px 0;
+        padding-left: 20px;
+        position: relative;
+      }
+
+      .step-item::before {
+        content: '→';
+        position: absolute;
+        left: 0;
+        color: inherit;
+        font-weight: 900;
+      }
+
+      .btn-action {
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95em;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-action:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-action:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .results-container {
+        display: none;
+        text-align: center;
+        padding: 30px;
+      }
+
+      .results-container.show { display: block; }
+
+      .score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3em;
+        font-weight: 900;
+        color: white;
+        margin: 20px auto;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        animation: scoreReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .score-circle.excellent { background: linear-gradient(135deg, #10b981, #059669); }
+      .score-circle.good { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+      .score-circle.fair { background: linear-gradient(135deg, #f59e0b, #d97706); }
+      .score-circle.poor { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+      @keyframes scoreReveal {
+        from { transform: scale(0.5) rotate(-180deg); opacity: 0; }
+        to { transform: scale(1) rotate(0); opacity: 1; }
+      }
+
+      .message-result {
+        font-size: 1.2em;
+        color: #333;
+        margin: 20px 0;
+        line-height: 1.6;
+      }
+
+      .qr-panel {
+        background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+        border-radius: 20px;
+        padding: 25px;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .qr-panel h3 {
+        color: var(--primary);
+        margin-bottom: 12px;
+        font-size: 1.15em;
+      }
+
+      .qr-panel p {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 15px;
+        line-height: 1.6;
+      }
+
+      #qrCode {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 240px;
+        background: white;
+        border-radius: 15px;
+        border: 2px solid #e0e0e0;
+        padding: 15px;
+        margin: 15px 0;
+      }
+
+      .session-code {
+        background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+        color: var(--primary);
+        padding: 12px 15px;
+        border-radius: 12px;
+        font-family: 'Courier New', monospace;
+        font-weight: 900;
+        font-size: 0.85em;
+        letter-spacing: 0.05em;
+        word-break: break-all;
+        border: 2px solid var(--primary);
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .emoji-reaction {
+        font-size: 2em;
+        animation: bounce 0.6s ease-in-out;
+        display: inline-block;
+      }
+
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>🎮 MathQuest 3D</h1>
+        <p>Petualangan Interaktif Bangun Ruang Sisi Lengkung Kelas 9</p>
+      </header>
+
+      <div class="main-grid">
+        <section class="panel">
+          <h2>🎯 Visualisasi 3D Interaktif</h2>
+
+          <div class="shape-selector">
+            <button class="shape-btn active" data-shape="cylinder">🔵 Tabung</button>
+            <button class="shape-btn" data-shape="cone">🔺 Kerucut</button>
+            <button class="shape-btn" data-shape="sphere">⚪ Bola</button>
+          </div>
+
+          <div class="canvas-wrap">
+            <canvas id="canvas"></canvas>
+            <div class="formula-popup" id="formulaPopup">
+              <strong>Rumus</strong>
+              <span id="formulaText">Luas Alas = πr²</span>
+            </div>
+          </div>
+
+          <div class="part-buttons" id="partButtons"></div>
+
+          <div class="concept-box">
+            <h3 id="conceptTitle">📚 Alas Tabung</h3>
+            <p id="conceptDesc">Alas tabung berbentuk lingkaran dengan luas πr².</p>
+            <div class="formula-highlight" id="formulaBox">Luas Alas = πr²</div>
+            <p id="conceptExplain" style="margin-top: 12px; font-size: 0.9em; color: #666;">Alas tabung berupa lingkaran yang dibentuk dari banyak potongan kecil disusun seperti jajar genjang, membuat luas alas dihitung dengan πr².</p>
+          </div>
+        </section>
+
+        <aside class="panel">
+          <h2>❓ Latihan Soal</h2>
+
+          <div class="quiz-section">
+            <div class="quiz-header">
+              <h3>Challenge Mode</h3>
+              <div class="quiz-counter" id="questionCounter">1/3</div>
+            </div>
+
+            <div class="progress-container">
+              <div class="progress-label">
+                <span>Progress</span>
+                <span id="progressPercent">0%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div id="quizContainer" class="question-card">
+              <div id="quizContent"></div>
+            </div>
+
+            <button class="btn-action" id="nextBtn" disabled>Lanjut 🚀</button>
+
+            <div class="results-container" id="resultsPanel">
+              <div class="score-circle" id="scoreCircle">0/3</div>
+              <div class="message-result" id="resultMessage"></div>
+              <button class="btn-action" onclick="location.reload()">Mainkan Lagi 🎮</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="panel" style="margin: 0 30px 30px; background: linear-gradient(135deg, #f9fafb, #f3f4f6);">
+        <div class="qr-panel">
+          <h3>📱 Bagikan Sesi</h3>
+          <p>Scan QR untuk membuka dengan soal berbeda! Setiap session menghasilkan pertanyaan yang unik.</p>
+          <div id="qrCode"></div>
+          <div class="session-code" id="sessionCode">Kode: LOADING...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./quiz-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
+
